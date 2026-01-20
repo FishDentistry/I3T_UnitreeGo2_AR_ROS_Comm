@@ -1,0 +1,80 @@
+# =========================
+# ROS 2 / colcon build artifacts
+# =========================
+build/
+install/
+log/
+
+# colcon / ament tooling
+.colcon/
+**/colcon_command_prefix_*.sh
+**/.ament_ignore
+
+# =========================
+# CMake / build system junk
+# =========================
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+compile_commands.json
+
+# =========================
+# Python
+# =========================
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
+**/*.egg-info/
+.eggs/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+
+# =========================
+# IDEs / editors
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# OS junk
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# ROS bags & recorded data (usually huge)
+# If you actually want these tracked, remove these rules.
+# =========================
+*.bag
+*.db3
+*.mcap
+
+# =========================
+# Optional: ignore env / secrets files
+# =========================
+.env
+.env.*
+*.pem
+*.key
+
+# =========================
+# Optional: large binary outputs / models (adjust as needed)
+# =========================
+*.onnx
+*.pt
+*.pth
+*.tflite
+*.engine
+*.npz
+*.ply
