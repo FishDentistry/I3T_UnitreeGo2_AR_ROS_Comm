@@ -27,6 +27,7 @@ setup(
             'robotStateComm = ar_hrc_server_comm.RobotStateComm:main',
             'robotCommandListener = ar_hrc_server_comm.RobotCommandListener:main',
             'voxelMapper = ar_hrc_server_comm.CreateLidarVoxelMap:main',
+            'collSendLivoxCloud = ar_hrc_server_comm.CollSendLivoxCloud:main',
             'stackedOccupancyGrid = ar_hrc_server_comm.StackedOccupancyGrid:main',
             'occupancyBlobFilter = ar_hrc_server_comm.OccupancyBlobFilter:main',
             'findArucoFrame = ar_hrc_server_comm.FindArucoFrame:main',

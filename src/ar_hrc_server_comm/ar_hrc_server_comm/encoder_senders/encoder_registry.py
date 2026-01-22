@@ -2,7 +2,7 @@
 from ar_hrc_server_comm.encoder_senders.Position_encoders_senders import PositionHttpEncoderSender, PositionTCPEncoderSender
 from ar_hrc_server_comm.encoder_senders.Trajectory_encoders_senders import TrajectoryHttpEncoderSender, TrajectoryTCPEncoderSender
 from ar_hrc_server_comm.encoder_senders.Img_encoders_senders import ImgHttpEncoderSender, ImgTCPEncoderSender
-
+from ar_hrc_server_comm.encoder_senders.cloud_encoders_senders import PointCloudHttpEncoderSender, PointCloudTCPEncoderSender
 
 _ENCODERS = {
     ('position', 'http'): PositionHttpEncoderSender,
@@ -10,7 +10,9 @@ _ENCODERS = {
     ('trajectory', 'http'): TrajectoryHttpEncoderSender,
     ('trajectory', 'tcp'): TrajectoryTCPEncoderSender,
     ('image', 'http'): ImgHttpEncoderSender,
-    ('image', 'tcp'): ImgTCPEncoderSender
+    ('image', 'tcp'): ImgTCPEncoderSender,
+    ('point_cloud', 'http'): PointCloudHttpEncoderSender,
+    ('point_cloud', 'tcp'): PointCloudTCPEncoderSender
 }
 
 def get_encoder(message_type, transport):

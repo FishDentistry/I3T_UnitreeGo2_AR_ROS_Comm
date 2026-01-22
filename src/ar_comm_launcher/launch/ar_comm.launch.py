@@ -10,12 +10,14 @@ def generate_launch_description():
 
     send_realsense = LaunchConfiguration('send_realsense')
     transport_type = LaunchConfiguration('transport_type')
+    send_livox_clouds = LaunchConfiguration('send_livox_clouds')
 
 
     return LaunchDescription([
 
         DeclareLaunchArgument('send_realsense', default_value='false'),
         DeclareLaunchArgument('transport_type', default_value='http'),
+        DeclareLaunchArgument('send_livox_clouds', default_value='false'),
 
         Node(
             package='ar_hrc_server_comm',
@@ -41,6 +43,16 @@ def generate_launch_description():
             executable='robotCommandListener',
             name='robot_command_listener',
             output='screen'
+        ),
+        Node(
+            package='ar_hrc_server_comm',
+            executable='collSendLivoxCloud',
+            name='coll_send_livox_cloud',
+            output='screen',
+            condition=IfCondition(send_livox_clouds),
+            parameters=[{
+                'transport_type': transport_type
+            }]
         ),
         Node(
             package='ar_hrc_server_comm',

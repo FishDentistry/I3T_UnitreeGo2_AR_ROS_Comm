@@ -1,11 +1,10 @@
 import requests
-import socket
 import json
 from cv_bridge import CvBridge
 import io 
 import PIL.Image
 import numpy as np
-
+from ar_hrc_server_comm.encoder_senders.TCPEncSenSuper import GenericTCPEncoder
 
 class ImgHttpEncoderSender:
     endpoint = "/segmentrobotview"
@@ -53,21 +52,8 @@ class ImgHttpEncoderSender:
         
 
 
-class ImgTCPEncoderSender:
-    tcp_port = 5001
-    tcp_socket = None
-    def _ensure_tcp_connection(self,url,port):
-        """Create or re-create a TCP connection to the server if needed."""
-        if self.tcp_socket is not None:
-            return
-
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(1.0)
-            s.connect((url, port))
-            self.tcp_socket = s
-        except Exception as e:
-            self.tcp_socket = None
+class ImgTCPEncoderSender(GenericTCPEncoder):
         
-    def encode_send(self, msg, namespace, url):
+    def encode_send(self, rgb_msg, rgb_enc_type, namespace, url, depth_msg = None,intrinsics=None,target_tf=None,vel_arr=None):
+        ip = self.extract_ip(url)
         pass

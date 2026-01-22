@@ -1,7 +1,6 @@
 import requests
-import socket
 import json
-
+from ar_hrc_server_comm.encoder_senders.TCPEncSenSuper import GenericTCPEncoder
 
 
 def extractTrajectory(path_msg):
@@ -22,22 +21,8 @@ class TrajectoryHttpEncoderSender:
         
 
 
-class TrajectoryTCPEncoderSender:
-    tcp_port = 5001
-    tcp_socket = None
-    def _ensure_tcp_connection(self,url,port):
-        """Create or re-create a TCP connection to the server if needed."""
-        if self.tcp_socket is not None:
-            return
-
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(1.0)
-            s.connect((url, port))
-            self.tcp_socket = s
-        except Exception as e:
-            self.tcp_socket = None
-        
+class TrajectoryTCPEncoderSender(GenericTCPEncoder):
+    
     def encode_send(self, msg, namespace, url):
         """
         Send position as JSON over TCP:
@@ -45,7 +30,8 @@ class TrajectoryTCPEncoderSender:
             {"position": [x, y, z]}\n
         """
         trajectory = extractTrajectory(msg)
-        self._ensure_tcp_connection(url,self.tcp_port)
+        ip = self.extract_ip(url)
+        self._ensure_tcp_connection(ip,self.tcp_port)
         if self.tcp_socket is None:
             return
 

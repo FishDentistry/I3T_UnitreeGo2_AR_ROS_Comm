@@ -1,6 +1,6 @@
 import requests
-import socket
 import json
+from ar_hrc_server_comm.encoder_senders.TCPEncSenSuper import GenericTCPEncoder
 
 class PositionHttpEncoderSender:
     endpoint = "/sendrobotcurrentpose"
@@ -19,21 +19,7 @@ class PositionHttpEncoderSender:
         
 
 
-class PositionTCPEncoderSender:
-    tcp_port = 5001
-    tcp_socket = None
-    def _ensure_tcp_connection(self,url,port):
-        """Create or re-create a TCP connection to the server if needed."""
-        if self.tcp_socket is not None:
-            return
-
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(1.0)
-            s.connect((url, port))
-            self.tcp_socket = s
-        except Exception as e:
-            self.tcp_socket = None
+class PositionTCPEncoderSender(GenericTCPEncoder):
         
     def encode_send(self, position, orientation, namespace, url):
         """
@@ -41,12 +27,13 @@ class PositionTCPEncoderSender:
 
             {"position": [x, y, z]}\n
         """
+        ip = self.extract_ip(url)
         # Ensure we have a socket
-        self._ensure_tcp_connection(url,self.tcp_port)
+        self._ensure_tcp_connection(ip,self.tcp_port)
         if self.tcp_socket is None:
             return
 
-        payload = {"position": position}
+        payload = {"update_type":"pos_up","position": position}
         try:
             data = (json.dumps(payload) + "\n").encode('utf-8')
             self.tcp_socket.sendall(data)

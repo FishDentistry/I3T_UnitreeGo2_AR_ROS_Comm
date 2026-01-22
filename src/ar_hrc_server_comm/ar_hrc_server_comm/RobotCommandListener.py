@@ -8,7 +8,7 @@ import numpy as np
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import NavigateToPose, FollowWaypoints
 from rclpy.action import ActionClient
-
+from ar_hrc_server_comm.web_request_scripts.FindRequester import get_request_client_with_protocol
 
 
 
@@ -25,6 +25,10 @@ class RobotCommandListener(Node):
         with open(yaml_file, 'r') as f:
             config_data = yaml.safe_load(f)
         self.serverURL = config_data.get('server_url')
+
+        self.declare_parameter('transport_type', 'http')
+        transport_type = self.get_parameter('transport_type').value
+        self.web_client = get_request_client_with_protocol(transport_type)
         self.commandURL = self.serverURL +"/getoldestrobotdestination?robotNamespace="+self.get_namespace()
         self.nav_to_pose_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self.waypointClient = ActionClient(self, FollowWaypoints, 'FollowWaypoints')
@@ -33,7 +37,7 @@ class RobotCommandListener(Node):
     
     def requestLatestCommand(self):
         try:
-            resp = requests.get(self.commandURL)
+            resp = self.web_client.get(self.commandURL)#requests.get(self.commandURL)
             if resp.status_code == 200:
                 data = resp.json()
                 targetPosition = data["destination"]
