@@ -23,6 +23,12 @@ from visualization_msgs.msg import Marker
 from scipy.spatial.transform import Rotation as R
 from nav_msgs.msg import Odometry
 from math import sqrt
+from ar_hrc_server_comm.encoder_senders.encoder_registry import get_encoder
+
+
+
+        
+
 
 
 class RealsenseTopicsSubscriber(Node):
@@ -43,14 +49,22 @@ class RealsenseTopicsSubscriber(Node):
             config_data = yaml.safe_load(f)
         self.serverURL = config_data.get('server_url')
 
+
+        self.declare_parameter('transport_type', 'http')
+        transport_type = self.get_parameter('transport_type').value
+        
+
+        self.img_enc_send = get_encoder("image",transport_type)
+
         self.ts = ApproximateTimeSynchronizer(
             [self.rgb_sub, self.depth_sub],
             queue_size=10,
-            slop=0.5  # seconds of allowed timestamp difference
+            slop=0.1  # seconds of allowed timestamp difference
         )
         self.ts.registerCallback(self.sendRGBDepthImagesandMatricesToServer)
         # Get D435i intrinsics
         self.fx,self.fy,self.cx,self.cy = None,None,None,None
+        self.intrinsics = {}
         self.camIntrSub = self.create_subscription(CameraInfo, '/depth_camera_intrinsics', self.storeCameraIntr, 10)
         
         self.tfBuffer = Buffer()
@@ -73,44 +87,20 @@ class RealsenseTopicsSubscriber(Node):
     
     def storeCameraIntr(self,msg: CameraInfo):
         self.fx,self.fy,self.cx,self.cy = msg.k[0],msg.k[4],msg.k[2],msg.k[5]
+        self.intrinsics = {"fx":msg.k[0],"fy":msg.k[4],"cx":msg.k[2],"cy":msg.k[5]}
         
-
-    # def sendRGBDepthImagesToServer(self,rgb, depth):
-    #     #self.get_logger().info('Received synchronized RGB and depth images')
-    #     colorImage = self.bridge.imgmsg_to_cv2(rgb, desired_encoding='rgb8')
-    #     depthImage = self.bridge.imgmsg_to_cv2(depth, desired_encoding='32FC1')
-    #     imagesURL = self.serverURL + "/segmentrobotview"
-    #     rgb_io = io.BytesIO()
-    #     PIL.Image.fromarray(colorImage).save(rgb_io, format='JPEG')
-    #     rgb_io.seek(0)
-
-    #     depth_io = io.BytesIO()
-    #     np.save(depth_io, depthImage)
-    #     depth_io.seek(0)
-
-    #     # Construct POST request
-    #     files = {
-    #         'colorImage': ('rgb.png', rgb_io, 'image/png'),
-    #         'depthImage': ('depth.npy', depth_io, 'application/octet-stream')
-    #     }
-    #     try:
-    #         response = requests.post(imagesURL, files=files)
-    #         self.serverResponse = response.json()
-    #         self.get_logger().info(str(self.serverResponse))
-    #     except Exception as e:
-    #         self.get_logger().warn(f"Could not post images to server: {e}")
     
     def sendRGBDepthImagesandMatricesToServer(self,rgb,depth):
-        colorImage = self.bridge.imgmsg_to_cv2(rgb, desired_encoding='rgb8')
-        depthImage = self.bridge.imgmsg_to_cv2(depth, desired_encoding='32FC1')
-        imagesURL = self.serverURL + "/segmentrobotview"
-        rgb_io = io.BytesIO()
-        PIL.Image.fromarray(colorImage).save(rgb_io, format='JPEG')
-        rgb_io.seek(0)
+        # colorImage = self.bridge.imgmsg_to_cv2(rgb, desired_encoding='rgb8')
+        # depthImage = self.bridge.imgmsg_to_cv2(depth, desired_encoding='32FC1')
+        # imagesURL = self.serverURL + "/segmentrobotview"
+        # rgb_io = io.BytesIO()
+        # PIL.Image.fromarray(colorImage).save(rgb_io, format='JPEG')
+        # rgb_io.seek(0)
 
-        depth_io = io.BytesIO()
-        np.save(depth_io, depthImage)
-        depth_io.seek(0)
+        # depth_io = io.BytesIO()
+        # np.save(depth_io, depthImage)
+        # depth_io.seek(0)
 
         
         try:
@@ -124,29 +114,29 @@ class RealsenseTopicsSubscriber(Node):
                     )
                 transMatrix = self.getTransformationMatrix(transStamped)
 
-            # Serialize transformation matrix and intrinsics as JSON
-                matrixData = {
-                    "transformation_matrix": transMatrix.tolist(),
-                    "camera_intrinsics": {
-                        "fx": self.fx,
-                        "fy": self.fy,
-                        "cx": self.cx,
-                        "cy": self.cy
-                    }
-                }
-                meta_io = io.BytesIO()
-                meta_io.write(json.dumps(matrixData).encode('utf-8'))
-                meta_io.seek(0)
+            # # Serialize transformation matrix and intrinsics as JSON
+            #     matrixData = {
+            #         "transformation_matrix": transMatrix.tolist(),
+            #         "camera_intrinsics": {
+            #             "fx": self.fx,
+            #             "fy": self.fy,
+            #             "cx": self.cx,
+            #             "cy": self.cy
+            #         }
+            #     }
+            #     meta_io = io.BytesIO()
+            #     meta_io.write(json.dumps(matrixData).encode('utf-8'))
+            #     meta_io.seek(0)
 
-                files = {
-                    'colorImage': ('rgb.jpg', rgb_io, 'image/jpeg'),
-                    'depthImage': ('depth.npy', depth_io, 'application/octet-stream'),
-                    'matrixData': ('metadata.json', meta_io, 'application/json')
-                }
+            #     files = {
+            #         'colorImage': ('rgb.jpg', rgb_io, 'image/jpeg'),
+            #         'depthImage': ('depth.npy', depth_io, 'application/octet-stream'),
+            #         'matrixData': ('metadata.json', meta_io, 'application/json')
+            #     }
 
-                velData = {"linearVelMag":self.linearVelMag, "angularVelMag":self.angularVelMag}
+            #     velData = {"linearVelMag":self.linearVelMag, "angularVelMag":self.angularVelMag}
 
-                response = requests.post(imagesURL, files=files, data = velData)
+                response = self.img_enc_send.encode_send(rgb, 'rgb8', self.get_namespace(), self.serverURL, depth_msg = depth,intrinsics=self.intrinsics,target_tf=transMatrix,vel_arr=[self.linearVelMag,self.angularVelMag])#requests.post(imagesURL, files=files, data = velData)
                 self.serverResponse = response.json()
                 self.get_logger().info(str(self.serverResponse))
         except Exception as e:
@@ -163,74 +153,6 @@ class RealsenseTopicsSubscriber(Node):
         T[0:3, 0:3] = r
         T[0:3, 3] = t
         return T
-    
-    # def getPositionInCameraFrame(self):
-    #     if(self.serverResponse is not None):
-    #         depthVal = self.serverResponse["depthVal"]
-    #         pixelX,pixelY = self.serverResponse["centerPoint"][0],self.serverResponse["centerPoint"][1]
-    #         #x = (pixelX - self.cx) * depthVal / self.fx
-    #         #y = (pixelY- self.cy) * depthVal / self.fy
-    #         #return x,y,depthVal
-    #         z = (pixelY- self.cy) * depthVal / self.fy
-    #         y = (pixelX - self.cx) * depthVal / self.fx
-    #         x= depthVal
-    #         return x,y,z
-
-    
-    # def getPositionInWorld(self):
-    #     if(self.serverResponse is not None):
-    #         camX,camY,camZ = self.getPositionInCameraFrame()
-    #         try:
-    #             now = rclpy.time.Time()
-    #             self.get_logger().info(str(self.tfBuffer.can_transform('map', 'camera_link', now)))
-    #             if self.tfBuffer.can_transform('map', 'camera_link', now):
-    #                 trans = self.tfBuffer.lookup_transform(
-    #                     target_frame='map',
-    #                     source_frame='camera_link',
-    #                     time=now,
-    #                     timeout=rclpy.duration.Duration(seconds=1.0)
-    #                 )
-    #                 camera_point = PointStamped()
-    #                 camera_point.header.frame_id = 'camera_link'
-    #                 camera_point.header.stamp = now.to_msg()
-    #                 camera_point.point.x = camX
-    #                 camera_point.point.y = camY
-    #                 camera_point.point.z = camZ
-
-    #                 # Transform to map frame
-    #                 world_point = tf2_geometry_msgs.do_transform_point(camera_point, trans)
-    #                 self.get_logger().info("WOrld x: "+str(world_point.point.x))
-    #                 self.get_logger().info("WOrld y: "+str(world_point.point.y))
-    #                 self.get_logger().info("WOrld z: "+str(world_point.point.z))
-    #                 marker = Marker()
-    #                 marker.header.frame_id = 'map'
-    #                 marker.header.stamp = self.get_clock().now().to_msg()
-    #                 marker.ns = "world_point"
-    #                 marker.id = 0
-    #                 marker.type = Marker.SPHERE
-    #                 marker.action = Marker.ADD
-
-    #                 marker.pose.position.x = world_point.point.x
-    #                 marker.pose.position.y = world_point.point.y
-    #                 marker.pose.position.z = world_point.point.z
-    #                 marker.pose.orientation.x = 0.0
-    #                 marker.pose.orientation.y = 0.0
-    #                 marker.pose.orientation.z = 0.0
-    #                 marker.pose.orientation.w = 1.0
-
-    #                 marker.scale.x = 0.1
-    #                 marker.scale.y = 0.1
-    #                 marker.scale.z = 0.1
-
-    #                 marker.color.a = 1.0
-    #                 marker.color.r = 1.0
-    #                 marker.color.g = 0.0
-    #                 marker.color.b = 0.0
-
-    #                 self.marker_pub.publish(marker)
-
-    #         except Exception as e:
-    #             self.get_logger().warn(f"Transform unavailable: {e}")
 
 
 def main(args=None):

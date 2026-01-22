@@ -10,23 +10,30 @@ import requests
 from tf2_ros import TransformListener, Buffer
 from rclpy.qos import QoSProfile
 from geometry_msgs.msg import PoseWithCovarianceStamped
-
+from ar_hrc_server_comm.encoder_senders.encoder_registry import get_encoder
 
 class RobotStateComm(Node):
 
     def __init__(self):
         super().__init__('robot_state_comm')
 
+        
         config_package = 'ar_hrc_server_comm'  # <- this is the name of the original package holding the YAML
         package_share_dir = get_package_share_directory(config_package)
         yaml_file = os.path.join(package_share_dir, "config", "config.yaml") # change the yaml file for different robots
-
         # Load YAML config
         with open(yaml_file, 'r') as f:
             config_data = yaml.safe_load(f)
+        
         self.serverURL = config_data.get('server_url')
-        self.poseURL = self.serverURL +"/sendrobotcurrentpose"
-        self.trajectoryURL = self.serverURL + "/sendrobotcurrenttrajectory"
+
+        self.declare_parameter('transport_type', 'http')
+        transport_type = self.get_parameter('transport_type').value
+        #self.trajectoryURL = self.serverURL + "/sendrobotcurrenttrajectory"
+
+        self.pos_enc_send = get_encoder("position",transport_type)
+        self.traj_enc_send = get_encoder("trajectory",transport_type)
+
 
         self.tfBuffer = Buffer()
         self.tfListener = TransformListener(self.tfBuffer, self)
@@ -57,9 +64,9 @@ class RobotStateComm(Node):
                 position = [trans.transform.translation.x,trans.transform.translation.y,trans.transform.translation.z]
                 rot = trans.transform.rotation
                 orientation = [rot.x, rot.y, rot.z, rot.w]
-                json = {"namespace":self.get_namespace(),"position":position,"orientation":orientation}
+                #json = {"namespace":self.get_namespace(),"position":position,"orientation":orientation}
                 try:
-                    response = requests.post(self.poseURL,json=json)
+                    response = self.pos_enc_send.encode_send(position,orientation,self.get_namespace(),self.serverURL)
                 except Exception as e:
                     self.get_logger().warn(f"Could not post pose to server: {e}")
 
@@ -68,31 +75,11 @@ class RobotStateComm(Node):
     
     def amcl_pose_callback(self, msg: PoseWithCovarianceStamped):
         try:
-            # Extract position from the message
-            position = [
-                msg.pose.pose.position.x,
-                msg.pose.pose.position.y,
-                msg.pose.pose.position.z
-            ]
-
-            # Extract orientation (quaternion)
-            orientation = [
-                msg.pose.pose.orientation.x,
-                msg.pose.pose.orientation.y,
-                msg.pose.pose.orientation.z,
-                msg.pose.pose.orientation.w
-            ]
-
-            # Build the JSON payload
-            json_payload = {
-                "namespace": self.get_namespace(),
-                "position": position,
-                "orientation": orientation
-            }
-
             # Send to external server
+            position = [ msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z ] 
+            orientation = [ msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w ]
             try:
-                response = requests.post(self.poseURL, json=json_payload)
+                response = self.pos_enc_send.encode_send(position,orientation,self.get_namespace(),self.serverURL)
             except Exception as e:
                 self.get_logger().warn(f"Could not post pose to server: {e}")
 
@@ -101,15 +88,8 @@ class RobotStateComm(Node):
      
 
     def sendRobotTrajectory(self, msg: Path):
-        trajectory = []
-        for poseStamped in msg.poses:
-            position = [poseStamped.pose.position.x, poseStamped.pose.position.y,poseStamped.pose.position.z]
-            trajectory.append(position)
-
-        payload = {"namespace":self.get_namespace(),"trajectory": trajectory}
-
         try:
-            requests.post(self.trajectoryURL, json=payload)
+            response = self.traj_enc_send.encode_send(msg,self.get_namespace(),self.serverURL)
         except Exception as e:
             self.get_logger().warn(f"Could not post trajectory to server: {e}")
 

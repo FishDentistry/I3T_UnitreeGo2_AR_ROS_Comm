@@ -30,8 +30,7 @@ setup(
             'stackedOccupancyGrid = ar_hrc_server_comm.StackedOccupancyGrid:main',
             'occupancyBlobFilter = ar_hrc_server_comm.OccupancyBlobFilter:main',
             'findArucoFrame = ar_hrc_server_comm.FindArucoFrame:main',
-            'findAprilTagFrame_TCP = ar_hrc_server_comm.FindAprilTagFrame_TCP:main',
-            'sendRobotPos_TCP = ar_hrc_server_comm.SendRobotPos_TCP:main',
+            'findArucoFrameTCP = ar_hrc_server_comm.FindAprilTagFrame_TCP:main',
             'showObjsRviz = ar_hrc_server_comm.ShowObjsRviz:main'
         ],
     },
